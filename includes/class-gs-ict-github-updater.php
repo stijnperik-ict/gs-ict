@@ -95,6 +95,11 @@ final class GS_ICT_GitHub_Updater {
     }
 
     private static function get_latest_release() {
+        $force_check = is_admin() && isset( $_GET['force-check'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['force-check'] ) );
+        if ( $force_check ) {
+            delete_site_transient( self::CACHE_KEY );
+        }
+
         $cached = get_site_transient( self::CACHE_KEY );
         if ( is_array( $cached ) && ! empty( $cached['version'] ) ) {
             return $cached;
@@ -146,7 +151,7 @@ final class GS_ICT_GitHub_Updater {
             'body'     => isset( $data['body'] ) ? wp_kses_post( $data['body'] ) : '',
         );
 
-        set_site_transient( self::CACHE_KEY, $release, 6 * HOUR_IN_SECONDS );
+        set_site_transient( self::CACHE_KEY, $release, HOUR_IN_SECONDS );
 
         return $release;
     }
