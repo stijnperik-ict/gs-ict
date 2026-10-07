@@ -16,7 +16,6 @@ final class GS_ICT_GitHub_Updater {
     const API_LATEST       = 'https://api.github.com/repos/stijnperik-ict/gs-ict/releases/latest';
     const RELEASES_URL     = 'https://github.com/stijnperik-ict/gs-ict/releases';
     const PLUGIN_SLUG      = 'gs-ict';
-    const PLUGIN_FILE      = 'gs-ict/gs-ict.php';
     const RELEASE_ZIP_NAME = 'gs-ict.zip';
     const CACHE_KEY        = 'gs_ict_github_latest_release';
 
@@ -29,7 +28,7 @@ final class GS_ICT_GitHub_Updater {
     public static function check_for_update( $update, $plugin_data, $plugin_file, $locales ) {
         unset( $locales );
 
-        if ( self::PLUGIN_FILE !== $plugin_file ) {
+        if ( plugin_basename( GS_ICT_FILE ) !== $plugin_file ) {
             return $update;
         }
 
