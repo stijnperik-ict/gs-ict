@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+- Security-dashboard toegevoegd met WordPress-, PHP-, update- en 2FA-status.
+- Beveiligingslogboek toegevoegd met 90 dagen bewaartermijn voor belangrijke beheer- en beveiligingsgebeurtenissen.
+- Globale optie toegevoegd om 2FA voor alle administrators te verplichten, inclusief nieuwe administratoraccounts.
+- Nieuwe herstelcodes kunnen door de ingelogde administrator worden gegenereerd na verificatie met de huidige TOTP-code.
+- Oude herstelcodes worden bij regeneratie direct ongeldig.
+- 2FA-beleid voorkomt dat globale verplichting per account ongemerkt wordt omzeild.
+
 ## 0.3.0
 - GitHub Releases-updater voor update-meldingen in de normale WordPress pluginlijst.
 - Handmatig bijwerken via WordPress zonder telkens een ZIP te uploaden.
