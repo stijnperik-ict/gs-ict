@@ -444,7 +444,7 @@ final class GS_ICT_Two_Factor {
             <p>
                 <label for="gs_ict_otp">
                     <?php esc_html_e( 'Authenticatiecode of herstelcode', 'gs-ict' ); ?><br>
-                    <input type="text" name="gs_ict_otp" id="gs_ict_otp" class="input" value="" size="20" inputmode="numeric" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" autofocus required>
+                    <input type="text" name="gs_ict_otp" id="gs_ict_otp" class="input" value="" size="20" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" autofocus required>
                 </label>
             </p>
             <input type="hidden" name="challenge" value="<?php echo esc_attr( $token ); ?>">
