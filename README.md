@@ -11,6 +11,10 @@ GS ICT is een uitbreidbare WordPress-plugin voor beveiligings- en beheerfuncties
 - Automatische WordPress-updates centraal uitschakelen, terwijl handmatige updates beschikbaar blijven.
 - Een geplande onderhoudsdatum voor handmatige updates.
 - Updates voor GS ICT via GitHub Releases en de normale WordPress pluginlijst.
+- Security-dashboard met WordPress/PHP-versie, update-status en 2FA-dekking.
+- Beveiligingslogboek met logins, 2FA-gebeurtenissen, rolwijzigingen, pluginacties en updates.
+- Optioneel verplicht 2FA-beleid voor alle administratoraccounts.
+- Herstelcodes veilig opnieuw genereren na controle van de actuele authenticatorcode.
 
 ## Releases
 
