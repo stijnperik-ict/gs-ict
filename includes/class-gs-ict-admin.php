@@ -259,6 +259,8 @@ final class GS_ICT_Admin {
                             <?php elseif ( $required ) : ?>
                                 <?php if ( (int) $user->ID === (int) $current_user_id ) : ?>
                                     <a class="button button-primary" href="<?php echo esc_url( admin_url( 'admin.php?page=gs-ict-2fa-setup' ) ); ?>"><?php esc_html_e( 'Nu instellen', 'gs-ict' ); ?></a>
+                                <?php elseif ( GS_ICT_Dashboard::require_all_admins() ) : ?>
+                                    <span class="description"><?php esc_html_e( 'Globaal verplicht', 'gs-ict' ); ?></span>
                                 <?php else : ?>
                                     <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline" onsubmit="return confirm('Verplichte 2FA-installatie voor deze gebruiker annuleren?');">
                                         <input type="hidden" name="action" value="gs_ict_cancel_required_2fa">
