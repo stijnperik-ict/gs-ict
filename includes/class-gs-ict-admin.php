@@ -176,11 +176,12 @@ final class GS_ICT_Admin {
     public static function updates_page() {
         self::require_manage_options();
 
-        $maintenance = GS_ICT_Updates::next_maintenance_date();
-        $days        = GS_ICT_Updates::days_until_maintenance();
+        $manual_maintenance = GS_ICT_Updates::auto_updates_disabled();
+        $maintenance        = $manual_maintenance ? GS_ICT_Updates::next_maintenance_date() : null;
+        $days               = $manual_maintenance ? GS_ICT_Updates::days_until_maintenance() : null;
         ?>
         <div class="wrap gs-ict-wrap">
-            <?php self::page_header( __( 'Updates', 'gs-ict' ), __( 'Beheer het updatebeleid en de vaste maandelijkse onderhoudsdag.', 'gs-ict' ) ); ?>
+            <?php self::page_header( __( 'Updates', 'gs-ict' ), __( 'Beheer het updatebeleid van deze WordPress-installatie.', 'gs-ict' ) ); ?>
             <?php self::render_current_message(); ?>
 
             <div class="gs-ict-panel">
@@ -207,27 +208,29 @@ final class GS_ICT_Admin {
                 </form>
             </div>
 
-            <div class="gs-ict-panel gs-ict-maintenance-panel">
-                <div class="gs-ict-maintenance-date"><?php echo esc_html( wp_date( 'd-m-Y', $maintenance->getTimestamp(), wp_timezone() ) ); ?></div>
-                <div>
-                    <h2><?php esc_html_e( 'Volgende onderhoudsdag', 'gs-ict' ); ?></h2>
-                    <p>
-                        <?php
-                        if ( 0 === $days ) {
-                            esc_html_e( 'Vandaag is de vaste onderhoudsdag.', 'gs-ict' );
-                        } else {
-                            echo esc_html(
-                                sprintf(
-                                    _n( 'Over %d dag is de vaste onderhoudsdag.', 'Over %d dagen is de vaste onderhoudsdag.', $days, 'gs-ict' ),
-                                    $days
-                                )
-                            );
-                        }
-                        ?>
-                    </p>
-                    <p class="description"><?php esc_html_e( 'GS ICT plant handmatig onderhoud standaard op de eerste maandag van iedere maand.', 'gs-ict' ); ?></p>
+            <?php if ( $manual_maintenance ) : ?>
+                <div class="gs-ict-panel gs-ict-maintenance-panel">
+                    <div class="gs-ict-maintenance-date"><?php echo esc_html( wp_date( 'd-m-Y', $maintenance->getTimestamp(), wp_timezone() ) ); ?></div>
+                    <div>
+                        <h2><?php esc_html_e( 'Volgende onderhoudsdag', 'gs-ict' ); ?></h2>
+                        <p>
+                            <?php
+                            if ( 0 === $days ) {
+                                esc_html_e( 'Vandaag is de vaste onderhoudsdag.', 'gs-ict' );
+                            } else {
+                                echo esc_html(
+                                    sprintf(
+                                        _n( 'Over %d dag is de vaste onderhoudsdag.', 'Over %d dagen is de vaste onderhoudsdag.', $days, 'gs-ict' ),
+                                        $days
+                                    )
+                                );
+                            }
+                            ?>
+                        </p>
+                        <p class="description"><?php esc_html_e( 'GS ICT plant handmatig onderhoud standaard op de eerste maandag van iedere maand.', 'gs-ict' ); ?></p>
+                    </div>
                 </div>
-            </div>
+            <?php endif; ?>
         </div>
         <?php
     }
