@@ -55,17 +55,22 @@ final class GS_ICT_Dashboard {
             }
         }
 
-        $recent_events = GS_ICT_Audit_Log::count_recent( 7 );
-        $maintenance   = GS_ICT_Updates::next_maintenance_date();
-        $days          = GS_ICT_Updates::days_until_maintenance();
+        $recent_events      = GS_ICT_Audit_Log::count_recent( 7 );
+        $manual_maintenance = GS_ICT_Updates::auto_updates_disabled();
+        $maintenance_value  = '';
+        $maintenance_desc   = '';
 
-        $maintenance_value = wp_date( 'd-m-Y', $maintenance->getTimestamp(), wp_timezone() );
-        $maintenance_desc  = 0 === $days
-            ? __( 'Vandaag is de vaste onderhoudsdag', 'gs-ict' )
-            : sprintf(
-                _n( 'Over %d dag', 'Over %d dagen', $days, 'gs-ict' ),
-                $days
-            );
+        if ( $manual_maintenance ) {
+            $maintenance       = GS_ICT_Updates::next_maintenance_date();
+            $days              = GS_ICT_Updates::days_until_maintenance();
+            $maintenance_value = wp_date( 'd-m-Y', $maintenance->getTimestamp(), wp_timezone() );
+            $maintenance_desc  = 0 === $days
+                ? __( 'Vandaag is de vaste onderhoudsdag', 'gs-ict' )
+                : sprintf(
+                    _n( 'Over %d dag', 'Over %d dagen', $days, 'gs-ict' ),
+                    $days
+                );
+        }
         ?>
         <div class="gs-ict-panel">
             <div class="gs-ict-panel-header">
@@ -83,7 +88,9 @@ final class GS_ICT_Dashboard {
                 <?php self::status_card( '2FA admins', $enabled . '/' . count( $admins ), $enabled === count( $admins ) ? 'ok' : 'warning', $required ? $required . ' installatie(s) vereist' : 'Administratorbeveiliging' ); ?>
                 <?php self::status_card( 'Auditlog 7 dagen', (string) $recent_events, 'info', 'Geregistreerde gebeurtenissen' ); ?>
                 <?php self::status_card( 'Automatische updates', GS_ICT_Updates::auto_updates_disabled() ? 'Uit' : 'Aan', GS_ICT_Updates::auto_updates_disabled() ? 'ok' : 'warning', GS_ICT_Updates::auto_updates_disabled() ? 'Handmatig beheer' : 'Automatisch toegestaan' ); ?>
-                <?php self::status_card( 'Volgend onderhoud', $maintenance_value, 'info', $maintenance_desc ); ?>
+                <?php if ( $manual_maintenance ) : ?>
+                    <?php self::status_card( 'Volgend onderhoud', $maintenance_value, 'info', $maintenance_desc ); ?>
+                <?php endif; ?>
             </div>
 
             <div class="gs-ict-panel-actions">
