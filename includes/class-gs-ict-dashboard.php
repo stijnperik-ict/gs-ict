@@ -23,6 +23,10 @@ final class GS_ICT_Dashboard {
             return;
         }
 
+        if ( ! function_exists( 'get_core_updates' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/update.php';
+        }
+
         $admins = get_users( array( 'role' => 'administrator' ) );
         $enabled = 0;
         $required = 0;
@@ -128,7 +132,8 @@ final class GS_ICT_Dashboard {
     }
 
     public static function regenerate_recovery_codes() {
-        if ( ! current_user_can( 'read' ) ) {
+        $user = wp_get_current_user();
+        if ( ! current_user_can( 'manage_options' ) || ! GS_ICT_Two_Factor::is_admin_user( $user ) ) {
             wp_die( esc_html__( 'Onvoldoende rechten.', 'gs-ict' ) );
         }
         check_admin_referer( 'gs_ict_regenerate_recovery_codes' );
