@@ -2,7 +2,7 @@
 /**
  * Plugin Name: GS ICT
  * Description: Beveiligings- en beheerfuncties voor WordPress, waaronder TOTP-2FA voor administrators en controle over automatische updates.
- * Version: 0.4.0
+ * Version: 0.4.1
  * Update URI: https://github.com/stijnperik-ict/gs-ict
  * Author: GS ICT
  * Requires at least: 6.4
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'GS_ICT_VERSION', '0.4.0' );
+define( 'GS_ICT_VERSION', '0.4.1' );
 define( 'GS_ICT_FILE', __FILE__ );
 define( 'GS_ICT_DIR', plugin_dir_path( __FILE__ ) );
 
