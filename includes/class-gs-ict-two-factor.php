@@ -14,9 +14,12 @@ final class GS_ICT_Two_Factor {
     const META_RECOVERY_SHOW   = '_gs_ict_2fa_recovery_show';
     const META_LAST_STEP       = '_gs_ict_2fa_last_step';
 
+    const CHALLENGE_TTL      = 300;
+    const CHALLENGE_ATTEMPTS = 5;
+
     public static function init() {
-        add_action( 'login_form', array( __CLASS__, 'render_login_field' ) );
-        add_filter( 'wp_authenticate_user', array( __CLASS__, 'authenticate' ), 30, 2 );
+        add_filter( 'authenticate', array( __CLASS__, 'start_challenge_after_password' ), 50, 3 );
+        add_action( 'login_form_gs_ict_2fa', array( __CLASS__, 'handle_login_challenge' ) );
         add_filter( 'login_redirect', array( __CLASS__, 'login_redirect' ), 20, 3 );
         add_action( 'admin_init', array( __CLASS__, 'enforce_setup_in_admin' ), 1 );
     }
@@ -31,6 +34,106 @@ final class GS_ICT_Two_Factor {
 
     public static function is_required( $user_id ) {
         return '1' === get_user_meta( (int) $user_id, self::META_REQUIRED, true ) && ! self::is_enabled( $user_id );
+    }
+
+    public static function start_challenge_after_password( $user, $username, $password ) {
+        unset( $username, $password );
+
+        if ( is_wp_error( $user ) || ! self::is_admin_user( $user ) || ! self::is_enabled( $user->ID ) ) {
+            return $user;
+        }
+
+        if ( ! self::is_interactive_login_request() ) {
+            return new WP_Error(
+                'gs_ict_2fa_interactive_required',
+                __( '<strong>Fout:</strong> Voor dit administratoraccount is tweestapsverificatie vereist. Log interactief in via wp-login.php.', 'gs-ict' )
+            );
+        }
+
+        $token = bin2hex( random_bytes( 32 ) );
+        $data  = array(
+            'user_id'     => (int) $user->ID,
+            'remember'    => ! empty( $_POST['rememberme'] ),
+            'redirect_to' => self::requested_redirect(),
+            'attempts'    => 0,
+            'created_at'  => time(),
+        );
+
+        set_transient( self::challenge_key( $token ), $data, self::CHALLENGE_TTL );
+
+        wp_safe_redirect(
+            add_query_arg(
+                array(
+                    'action'    => 'gs_ict_2fa',
+                    'challenge' => rawurlencode( $token ),
+                ),
+                site_url( 'wp-login.php', 'login_post' )
+            )
+        );
+        exit;
+    }
+
+    public static function handle_login_challenge() {
+        $token = isset( $_REQUEST['challenge'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['challenge'] ) ) : '';
+        $data  = self::get_challenge( $token );
+        $error = null;
+
+        if ( ! $data ) {
+            self::render_challenge_page(
+                $token,
+                null,
+                new WP_Error(
+                    'gs_ict_challenge_expired',
+                    __( 'Deze 2FA-aanvraag is verlopen of ongeldig. Log opnieuw in.', 'gs-ict' )
+                )
+            );
+        }
+
+        if ( 'POST' === strtoupper( isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '' ) ) {
+            $nonce = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ) : '';
+            if ( ! wp_verify_nonce( $nonce, 'gs_ict_2fa_challenge_' . $token ) ) {
+                $error = new WP_Error( 'gs_ict_challenge_nonce', __( 'De beveiligingscontrole is verlopen. Probeer opnieuw.', 'gs-ict' ) );
+            } elseif ( (int) $data['attempts'] >= self::CHALLENGE_ATTEMPTS ) {
+                $error = new WP_Error( 'gs_ict_challenge_locked', __( 'Te veel onjuiste 2FA-pogingen. Log opnieuw in.', 'gs-ict' ) );
+            } else {
+                $submitted = isset( $_POST['gs_ict_otp'] ) ? sanitize_text_field( wp_unslash( $_POST['gs_ict_otp'] ) ) : '';
+                $result    = self::verify_login_code( (int) $data['user_id'], $submitted );
+
+                if ( true === $result ) {
+                    delete_transient( self::challenge_key( $token ) );
+
+                    $user = get_userdata( (int) $data['user_id'] );
+                    if ( ! $user ) {
+                        self::render_challenge_page(
+                            $token,
+                            null,
+                            new WP_Error( 'gs_ict_user_missing', __( 'Het gebruikersaccount kon niet worden geladen. Log opnieuw in.', 'gs-ict' ) )
+                        );
+                    }
+
+                    wp_set_current_user( $user->ID );
+                    wp_set_auth_cookie( $user->ID, ! empty( $data['remember'] ), is_ssl() );
+                    do_action( 'wp_login', $user->user_login, $user );
+
+                    $redirect_to = wp_validate_redirect(
+                        isset( $data['redirect_to'] ) ? $data['redirect_to'] : '',
+                        admin_url()
+                    );
+
+                    wp_safe_redirect( $redirect_to );
+                    exit;
+                }
+
+                $data['attempts'] = (int) $data['attempts'] + 1;
+                self::save_challenge( $token, $data );
+
+                $error = $result instanceof WP_Error
+                    ? $result
+                    : new WP_Error( 'gs_ict_2fa_invalid', __( 'De authenticatorcode of herstelcode is ongeldig.', 'gs-ict' ) );
+            }
+        }
+
+        self::render_challenge_page( $token, $data, $error );
     }
 
     public static function require_setup( $user_id, $source = 'manual' ) {
@@ -62,7 +165,6 @@ final class GS_ICT_Two_Factor {
         } elseif ( ! $was_required ) {
             update_user_meta( (int) $user_id, self::META_REQUIRED_SOURCE, 'global' );
         } elseif ( '' === $current_source ) {
-            // Verplichtingen uit 0.3.0 behandelen we als handmatig ingesteld.
             update_user_meta( (int) $user_id, self::META_REQUIRED_SOURCE, 'manual' );
         }
 
@@ -103,81 +205,6 @@ final class GS_ICT_Two_Factor {
         return true;
     }
 
-    public static function render_login_field() {
-        ?>
-        <p>
-            <label for="gs_ict_otp">
-                <?php esc_html_e( 'Authenticatiecode (indien 2FA is ingeschakeld)', 'gs-ict' ); ?><br>
-                <input type="text" name="gs_ict_otp" id="gs_ict_otp" class="input" value="" size="20" inputmode="numeric" autocomplete="one-time-code" autocapitalize="off" spellcheck="false">
-            </label>
-        </p>
-        <?php
-    }
-
-    public static function authenticate( $user, $password ) {
-        unset( $password );
-
-        if ( is_wp_error( $user ) || ! self::is_admin_user( $user ) || ! self::is_enabled( $user->ID ) ) {
-            return $user;
-        }
-
-        $rate_key = self::rate_key( $user->ID );
-        $attempts = (int) get_transient( $rate_key );
-        if ( $attempts >= 5 ) {
-            self::audit_auth_failure( $user->ID, 'rate_limited' );
-            return new WP_Error(
-                'gs_ict_2fa_rate_limited',
-                __( '<strong>Fout:</strong> Te veel onjuiste 2FA-pogingen. Probeer het over enkele minuten opnieuw.', 'gs-ict' )
-            );
-        }
-
-        $submitted = isset( $_POST['gs_ict_otp'] ) ? sanitize_text_field( wp_unslash( $_POST['gs_ict_otp'] ) ) : '';
-        if ( '' === $submitted ) {
-            self::bump_rate_limit( $rate_key, $attempts );
-            self::audit_auth_failure( $user->ID, 'missing_code' );
-            return new WP_Error(
-                'gs_ict_2fa_required',
-                __( '<strong>Fout:</strong> Vul je 2FA-authenticatiecode of herstelcode in.', 'gs-ict' )
-            );
-        }
-
-        $secret = self::get_secret( $user->ID );
-        if ( $secret ) {
-            $step = GS_ICT_TOTP::verify( $secret, $submitted, 1 );
-            if ( false !== $step ) {
-                $last_step = (int) get_user_meta( $user->ID, self::META_LAST_STEP, true );
-                if ( $step <= $last_step ) {
-                    self::bump_rate_limit( $rate_key, $attempts );
-                    self::audit_auth_failure( $user->ID, 'replayed_code' );
-                    return new WP_Error(
-                        'gs_ict_2fa_replayed',
-                        __( '<strong>Fout:</strong> Deze authenticatiecode is al gebruikt. Wacht op een nieuwe code.', 'gs-ict' )
-                    );
-                }
-
-                update_user_meta( $user->ID, self::META_LAST_STEP, $step );
-                delete_transient( $rate_key );
-                return $user;
-            }
-        }
-
-        if ( self::consume_recovery_code( $user->ID, $submitted ) ) {
-            delete_transient( $rate_key );
-            if ( class_exists( 'GS_ICT_Audit_Log' ) ) {
-                GS_ICT_Audit_Log::log( 'recovery_code_used', 'Een 2FA-herstelcode is gebruikt om in te loggen.', 'warning', array(), $user->ID );
-            }
-            return $user;
-        }
-
-        self::bump_rate_limit( $rate_key, $attempts );
-        self::audit_auth_failure( $user->ID, 'invalid_code' );
-
-        return new WP_Error(
-            'gs_ict_2fa_invalid',
-            __( '<strong>Fout:</strong> De 2FA-authenticatiecode of herstelcode is ongeldig.', 'gs-ict' )
-        );
-    }
-
     public static function login_redirect( $redirect_to, $requested_redirect_to, $user ) {
         unset( $requested_redirect_to );
 
@@ -199,13 +226,14 @@ final class GS_ICT_Two_Factor {
         }
 
         global $pagenow;
-        $page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+        $page   = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+        $action = isset( $_REQUEST['action'] ) ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : '';
 
         if ( 'admin.php' === $pagenow && 'gs-ict-2fa-setup' === $page ) {
             return;
         }
 
-        if ( 'admin-post.php' === $pagenow ) {
+        if ( 'admin-post.php' === $pagenow && 'gs_ict_enable_2fa' === $action ) {
             return;
         }
 
@@ -256,9 +284,13 @@ final class GS_ICT_Two_Factor {
             return new WP_Error( 'gs_ict_crypto', __( 'De 2FA-sleutel kon niet veilig worden opgeslagen.', 'gs-ict' ) );
         }
 
+        $recovery_result = self::store_new_recovery_codes( $user_id );
+        if ( is_wp_error( $recovery_result ) ) {
+            return $recovery_result;
+        }
+
         update_user_meta( $user_id, self::META_SECRET, $encrypted );
         update_user_meta( $user_id, self::META_ENABLED, '1' );
-        self::store_new_recovery_codes( $user_id );
         delete_user_meta( $user_id, self::META_REQUIRED );
         delete_user_meta( $user_id, self::META_REQUIRED_SOURCE );
         delete_user_meta( $user_id, self::META_PENDING_SECRET );
@@ -317,12 +349,28 @@ final class GS_ICT_Two_Factor {
     }
 
     public static function get_recovery_codes_for_display( $user_id ) {
-        $codes = get_user_meta( (int) $user_id, self::META_RECOVERY_SHOW, true );
-        if ( is_array( $codes ) && ! empty( $codes ) ) {
-            delete_user_meta( (int) $user_id, self::META_RECOVERY_SHOW );
-            return $codes;
+        $stored = get_user_meta( (int) $user_id, self::META_RECOVERY_SHOW, true );
+        if ( empty( $stored ) ) {
+            return array();
         }
-        return array();
+
+        if ( is_array( $stored ) ) {
+            delete_user_meta( (int) $user_id, self::META_RECOVERY_SHOW );
+            return $stored;
+        }
+
+        $json = GS_ICT_Crypto::decrypt( $stored );
+        if ( false === $json ) {
+            return array();
+        }
+
+        $codes = json_decode( $json, true );
+        if ( ! is_array( $codes ) ) {
+            return array();
+        }
+
+        delete_user_meta( (int) $user_id, self::META_RECOVERY_SHOW );
+        return array_values( array_filter( array_map( 'sanitize_text_field', $codes ) ) );
     }
 
     public static function otpauth_uri( $user, $secret ) {
@@ -333,6 +381,138 @@ final class GS_ICT_Two_Factor {
         return 'otpauth://totp/' . $label . '?secret=' . rawurlencode( $secret ) . '&issuer=' . rawurlencode( $site ) . '&algorithm=SHA1&digits=6&period=30';
     }
 
+    private static function verify_login_code( $user_id, $submitted ) {
+        $rate_key = self::rate_key( $user_id );
+        $attempts = (int) get_transient( $rate_key );
+
+        if ( $attempts >= self::CHALLENGE_ATTEMPTS ) {
+            self::audit_auth_failure( $user_id, 'rate_limited' );
+            return new WP_Error( 'gs_ict_2fa_rate_limited', __( 'Te veel onjuiste 2FA-pogingen. Log opnieuw in en probeer het later nogmaals.', 'gs-ict' ) );
+        }
+
+        $submitted = trim( (string) $submitted );
+        if ( '' === $submitted ) {
+            self::bump_rate_limit( $rate_key, $attempts );
+            self::audit_auth_failure( $user_id, 'missing_code' );
+            return new WP_Error( 'gs_ict_2fa_required', __( 'Vul je authenticatorcode of herstelcode in.', 'gs-ict' ) );
+        }
+
+        $secret = self::get_secret( $user_id );
+        if ( $secret ) {
+            $step = GS_ICT_TOTP::verify( $secret, $submitted, 1 );
+            if ( false !== $step ) {
+                $last_step = (int) get_user_meta( $user_id, self::META_LAST_STEP, true );
+                if ( $step <= $last_step ) {
+                    self::bump_rate_limit( $rate_key, $attempts );
+                    self::audit_auth_failure( $user_id, 'replayed_code' );
+                    return new WP_Error( 'gs_ict_2fa_replayed', __( 'Deze authenticatorcode is al gebruikt. Wacht op een nieuwe code.', 'gs-ict' ) );
+                }
+
+                update_user_meta( $user_id, self::META_LAST_STEP, $step );
+                delete_transient( $rate_key );
+                return true;
+            }
+        }
+
+        if ( self::consume_recovery_code( $user_id, $submitted ) ) {
+            delete_transient( $rate_key );
+            if ( class_exists( 'GS_ICT_Audit_Log' ) ) {
+                GS_ICT_Audit_Log::log( 'recovery_code_used', 'Een 2FA-herstelcode is gebruikt om in te loggen.', 'warning', array(), $user_id );
+            }
+            return true;
+        }
+
+        self::bump_rate_limit( $rate_key, $attempts );
+        self::audit_auth_failure( $user_id, 'invalid_code' );
+
+        return new WP_Error( 'gs_ict_2fa_invalid', __( 'De authenticatorcode of herstelcode is ongeldig.', 'gs-ict' ) );
+    }
+
+    private static function render_challenge_page( $token, $data, $error = null ) {
+        $errors = new WP_Error();
+
+        if ( $error instanceof WP_Error ) {
+            foreach ( $error->get_error_messages() as $message ) {
+                $errors->add( 'gs_ict_2fa', $message );
+            }
+        }
+
+        login_header( __( 'Tweestapsverificatie', 'gs-ict' ), '', $errors );
+        ?>
+        <form name="gs-ict-2fa-form" id="gs-ict-2fa-form" action="<?php echo esc_url( site_url( 'wp-login.php?action=gs_ict_2fa', 'login_post' ) ); ?>" method="post" autocomplete="off">
+            <p><?php esc_html_e( 'Voer de 6-cijferige code uit je authenticator-app in. Je kunt ook een eenmalige herstelcode gebruiken.', 'gs-ict' ); ?></p>
+            <p>
+                <label for="gs_ict_otp">
+                    <?php esc_html_e( 'Authenticatiecode of herstelcode', 'gs-ict' ); ?><br>
+                    <input type="text" name="gs_ict_otp" id="gs_ict_otp" class="input" value="" size="20" inputmode="numeric" autocomplete="one-time-code" autocapitalize="off" spellcheck="false" autofocus required>
+                </label>
+            </p>
+            <input type="hidden" name="challenge" value="<?php echo esc_attr( $token ); ?>">
+            <?php wp_nonce_field( 'gs_ict_2fa_challenge_' . $token ); ?>
+            <p class="submit">
+                <input type="submit" name="wp-submit" id="wp-submit" class="button button-primary button-large" value="<?php esc_attr_e( 'Verifiëren', 'gs-ict' ); ?>">
+            </p>
+        </form>
+        <p id="nav"><a href="<?php echo esc_url( wp_login_url() ); ?>">&larr; <?php esc_html_e( 'Terug naar inloggen', 'gs-ict' ); ?></a></p>
+        <?php
+        login_footer();
+        exit;
+    }
+
+    private static function get_challenge( $token ) {
+        if ( ! preg_match( '/^[a-f0-9]{64}$/', (string) $token ) ) {
+            return false;
+        }
+
+        $data = get_transient( self::challenge_key( $token ) );
+        if ( ! is_array( $data ) || empty( $data['user_id'] ) || empty( $data['created_at'] ) ) {
+            return false;
+        }
+
+        if ( (int) $data['created_at'] + self::CHALLENGE_TTL < time() ) {
+            delete_transient( self::challenge_key( $token ) );
+            return false;
+        }
+
+        return $data;
+    }
+
+    private static function save_challenge( $token, $data ) {
+        $created_at = isset( $data['created_at'] ) ? (int) $data['created_at'] : time();
+        $remaining  = max( 1, ( $created_at + self::CHALLENGE_TTL ) - time() );
+        set_transient( self::challenge_key( $token ), $data, $remaining );
+    }
+
+    private static function challenge_key( $token ) {
+        return 'gsict_2fa_ch_' . hash( 'sha256', (string) $token );
+    }
+
+    private static function requested_redirect() {
+        $requested = isset( $_POST['redirect_to'] ) ? wp_unslash( $_POST['redirect_to'] ) : '';
+        return wp_validate_redirect( $requested, admin_url() );
+    }
+
+    private static function is_interactive_login_request() {
+        if ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST ) {
+            return false;
+        }
+
+        if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
+            return false;
+        }
+
+        if ( defined( 'WP_CLI' ) && WP_CLI ) {
+            return false;
+        }
+
+        if ( wp_doing_ajax() ) {
+            return false;
+        }
+
+        return 'POST' === strtoupper( isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '' )
+            && isset( $_POST['log'], $_POST['pwd'] );
+    }
+
     private static function store_new_recovery_codes( $user_id ) {
         $codes  = self::generate_recovery_codes( 8 );
         $hashes = array();
@@ -341,8 +521,13 @@ final class GS_ICT_Two_Factor {
             $hashes[] = wp_hash_password( self::normalize_recovery_code( $recovery_code ) );
         }
 
+        $encrypted_display = GS_ICT_Crypto::encrypt( wp_json_encode( $codes ) );
+        if ( false === $encrypted_display ) {
+            return new WP_Error( 'gs_ict_recovery_crypto', __( 'De herstelcodes konden niet veilig worden opgeslagen.', 'gs-ict' ) );
+        }
+
         update_user_meta( (int) $user_id, self::META_RECOVERY, $hashes );
-        update_user_meta( (int) $user_id, self::META_RECOVERY_SHOW, $codes );
+        update_user_meta( (int) $user_id, self::META_RECOVERY_SHOW, $encrypted_display );
 
         return true;
     }
@@ -368,7 +553,7 @@ final class GS_ICT_Two_Factor {
 
     private static function consume_recovery_code( $user_id, $submitted ) {
         $normalized = self::normalize_recovery_code( $submitted );
-        if ( strlen( $normalized ) !== 12 ) {
+        if ( 12 !== strlen( $normalized ) ) {
             return false;
         }
 
