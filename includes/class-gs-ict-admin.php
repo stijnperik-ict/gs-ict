@@ -81,6 +81,7 @@ final class GS_ICT_Admin {
 
             <?php self::render_message( $message ); ?>
             <?php self::render_recovery_codes( $recovery ); ?>
+            <?php GS_ICT_Dashboard::render(); ?>
 
             <div class="card" style="max-width:900px">
                 <h2><?php esc_html_e( 'Automatische updates', 'gs-ict' ); ?></h2>
@@ -298,6 +299,16 @@ final class GS_ICT_Admin {
         }
         update_option( 'gs_ict_planned_update_date', $date );
 
+        GS_ICT_Audit_Log::log(
+            'update_policy_changed',
+            'GS ICT update-instellingen gewijzigd.',
+            'warning',
+            array(
+                'automatic_updates_disabled' => isset( $_POST['disable_auto_updates'] ),
+                'planned_update_date' => $date,
+            )
+        );
+
         self::redirect( 'updates_saved' );
     }
 
@@ -364,7 +375,10 @@ final class GS_ICT_Admin {
             self::redirect( '2fa_error' );
         }
 
-        GS_ICT_Two_Factor::cancel_required_setup( $user_id );
+        $result = GS_ICT_Two_Factor::cancel_required_setup( $user_id );
+        if ( is_wp_error( $result ) ) {
+            self::redirect( '2fa_global_required' );
+        }
         self::redirect( '2fa_requirement_cancelled' );
     }
 
@@ -385,6 +399,9 @@ final class GS_ICT_Admin {
         }
 
         GS_ICT_Two_Factor::disable( $user_id );
+        if ( GS_ICT_Dashboard::require_all_admins() ) {
+            self::redirect( '2fa_reconfigure_required' );
+        }
         self::redirect( '2fa_disabled' );
     }
 
@@ -417,6 +434,11 @@ final class GS_ICT_Admin {
             '2fa_required'              => array( 'success', __( '2FA is verplicht gemaakt. Deze administrator krijgt bij de eerstvolgende login het installatiescherm te zien.', 'gs-ict' ) ),
             '2fa_requirement_cancelled' => array( 'warning', __( 'De verplichte 2FA-installatie is geannuleerd voor het gekozen account.', 'gs-ict' ) ),
             '2fa_disabled'              => array( 'warning', __( '2FA is uitgeschakeld voor het gekozen account.', 'gs-ict' ) ),
+            '2fa_reconfigure_required'  => array( 'warning', __( '2FA is uitgeschakeld, maar het globale beleid verplicht deze administrator om 2FA opnieuw in te stellen.', 'gs-ict' ) ),
+            '2fa_global_required'       => array( 'error', __( 'Deze 2FA-verplichting kan niet worden geannuleerd zolang het globale 2FA-beleid actief is.', 'gs-ict' ) ),
+            'security_policy_saved'     => array( 'success', __( 'Het 2FA-beleid is opgeslagen.', 'gs-ict' ) ),
+            'recovery_regenerated'      => array( 'success', __( 'Nieuwe herstelcodes zijn aangemaakt. Bewaar de hieronder getoonde codes direct; de oude codes zijn ongeldig.', 'gs-ict' ) ),
+            'recovery_error'            => array( 'error', __( 'De herstelcodes konden niet worden vernieuwd. Controleer je authenticatorcode en probeer opnieuw.', 'gs-ict' ) ),
             '2fa_error'                 => array( 'error', __( 'De 2FA-wijziging kon niet worden uitgevoerd. Controleer de code en probeer opnieuw.', 'gs-ict' ) ),
         );
 
