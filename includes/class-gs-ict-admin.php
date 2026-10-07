@@ -302,4 +302,130 @@ final class GS_ICT_Admin {
     }
 
     public static function enable_2fa() {
-        if ( ! curren
+        if ( ! current_user_can( 'read' ) ) {
+            wp_die( esc_html__( 'Onvoldoende rechten.', 'gs-ict' ) );
+        }
+        check_admin_referer( 'gs_ict_enable_2fa' );
+
+        $user_id = get_current_user_id();
+        $user    = get_userdata( $user_id );
+        if ( ! GS_ICT_Two_Factor::is_admin_user( $user ) ) {
+            wp_die( esc_html__( '2FA kan hier alleen voor administratoraccounts worden ingesteld.', 'gs-ict' ) );
+        }
+
+        $code    = isset( $_POST['totp_code'] ) ? sanitize_text_field( wp_unslash( $_POST['totp_code'] ) ) : '';
+        $context = isset( $_POST['setup_context'] ) ? sanitize_key( wp_unslash( $_POST['setup_context'] ) ) : 'settings';
+        $result  = GS_ICT_Two_Factor::enable( $user_id, $code );
+
+        if ( is_wp_error( $result ) ) {
+            if ( 'forced' === $context ) {
+                self::redirect_setup( '2fa_error' );
+            }
+            self::redirect( '2fa_error' );
+        }
+
+        if ( 'forced' === $context ) {
+            self::redirect_setup( '2fa_enabled' );
+        }
+        self::redirect( '2fa_enabled' );
+    }
+
+    public static function require_2fa() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'Onvoldoende rechten.', 'gs-ict' ) );
+        }
+
+        $user_id = isset( $_POST['user_id'] ) ? absint( $_POST['user_id'] ) : 0;
+        if ( ! $user_id ) {
+            self::redirect( '2fa_error' );
+        }
+        check_admin_referer( 'gs_ict_require_2fa_' . $user_id );
+
+        $result = GS_ICT_Two_Factor::require_setup( $user_id );
+        if ( is_wp_error( $result ) ) {
+            self::redirect( '2fa_error' );
+        }
+        self::redirect( '2fa_required' );
+    }
+
+    public static function cancel_required_2fa() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'Onvoldoende rechten.', 'gs-ict' ) );
+        }
+
+        $user_id = isset( $_POST['user_id'] ) ? absint( $_POST['user_id'] ) : 0;
+        if ( ! $user_id ) {
+            self::redirect( '2fa_error' );
+        }
+        check_admin_referer( 'gs_ict_cancel_required_2fa_' . $user_id );
+
+        $user = get_userdata( $user_id );
+        if ( ! GS_ICT_Two_Factor::is_admin_user( $user ) ) {
+            self::redirect( '2fa_error' );
+        }
+
+        GS_ICT_Two_Factor::cancel_required_setup( $user_id );
+        self::redirect( '2fa_requirement_cancelled' );
+    }
+
+    public static function disable_2fa() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'Onvoldoende rechten.', 'gs-ict' ) );
+        }
+
+        $user_id = isset( $_POST['user_id'] ) ? absint( $_POST['user_id'] ) : 0;
+        if ( ! $user_id ) {
+            self::redirect( '2fa_error' );
+        }
+
+        check_admin_referer( 'gs_ict_disable_2fa_' . $user_id );
+        $user = get_userdata( $user_id );
+        if ( ! GS_ICT_Two_Factor::is_admin_user( $user ) ) {
+            self::redirect( '2fa_error' );
+        }
+
+        GS_ICT_Two_Factor::disable( $user_id );
+        self::redirect( '2fa_disabled' );
+    }
+
+    private static function redirect( $message ) {
+        wp_safe_redirect(
+            add_query_arg(
+                'gsict_message',
+                sanitize_key( $message ),
+                admin_url( 'admin.php?page=gs-ict' )
+            )
+        );
+        exit;
+    }
+
+    private static function redirect_setup( $message ) {
+        wp_safe_redirect(
+            add_query_arg(
+                'gsict_message',
+                sanitize_key( $message ),
+                admin_url( 'admin.php?page=gs-ict-2fa-setup' )
+            )
+        );
+        exit;
+    }
+
+    private static function render_message( $message ) {
+        $messages = array(
+            'updates_saved'             => array( 'success', __( 'Update-instellingen zijn opgeslagen.', 'gs-ict' ) ),
+            '2fa_enabled'               => array( 'success', __( '2FA is ingeschakeld. Bewaar de herstelcodes die hieronder eenmalig worden getoond.', 'gs-ict' ) ),
+            '2fa_required'              => array( 'success', __( '2FA is verplicht gemaakt. Deze administrator krijgt bij de eerstvolgende login het installatiescherm te zien.', 'gs-ict' ) ),
+            '2fa_requirement_cancelled' => array( 'warning', __( 'De verplichte 2FA-installatie is geannuleerd voor het gekozen account.', 'gs-ict' ) ),
+            '2fa_disabled'              => array( 'warning', __( '2FA is uitgeschakeld voor het gekozen account.', 'gs-ict' ) ),
+            '2fa_error'                 => array( 'error', __( 'De 2FA-wijziging kon niet worden uitgevoerd. Controleer de code en probeer opnieuw.', 'gs-ict' ) ),
+        );
+
+        if ( isset( $messages[ $message ] ) ) {
+            printf(
+                '<div class="notice notice-%1$s is-dismissible"><p>%2$s</p></div>',
+                esc_attr( $messages[ $message ][0] ),
+                esc_html( $messages[ $message ][1] )
+            );
+        }
+    }
+}
