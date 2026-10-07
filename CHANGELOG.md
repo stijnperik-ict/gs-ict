@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1
+- De onderhoudsdatum wordt alleen nog getoond wanneer automatische updates zijn uitgeschakeld.
+- Op sites met automatische updates aan verdwijnt de onderhoudskaart op Overzicht volledig.
+- Op de Updates-pagina wordt het onderhoudspaneel verborgen wanneer automatische updates aanstaan.
+
 ## 0.5.0
 - GS ICT-beheer opgesplitst in Overzicht, 2FA, Updates en Beveiligingslogboek.
 - Nieuwe consistente admin-opmaak met responsive statuskaarten, panelen en badges.
