@@ -1,0 +1,68 @@
+name: Build and publish GS ICT release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read plugin version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(sed -n 's/^ \* Version: \([0-9][0-9.]*\)$/\1/p' gs-ict.php | head -n1)
+          if [ -z "$VERSION" ]; then
+            echo "Could not determine plugin version from gs-ict.php" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Stop when release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build WordPress ZIP
+        if: steps.existing.outputs.exists != 'true'
+        shell: bash
+        run: |
+          rm -rf dist
+          mkdir -p dist/gs-ict
+          rsync -a ./ dist/gs-ict/ \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='dist' \
+            --exclude='.DS_Store'
+          (cd dist && zip -qr gs-ict.zip gs-ict)
+          unzip -l dist/gs-ict.zip
+
+      - name: Publish GitHub Release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          gh release create "$TAG" dist/gs-ict.zip \
+            --target "$GITHUB_SHA" \
+            --title "GS ICT $VERSION" \
+            --generate-notes
