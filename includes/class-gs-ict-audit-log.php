@@ -108,9 +108,15 @@ final class GS_ICT_Audit_Log {
 
         $pages = max( 1, (int) ceil( $total / $per_page ) );
         ?>
-        <div class="wrap">
-            <h1><?php esc_html_e( 'GS ICT – Beveiligingslogboek', 'gs-ict' ); ?></h1>
-            <p><?php echo esc_html( sprintf( __( 'Beveiligingsgebeurtenissen worden maximaal %d dagen bewaard.', 'gs-ict' ), self::RETENTION_DAYS ) ); ?></p>
+        <div class="wrap gs-ict-wrap">
+            <div class="gs-ict-page-header">
+                <div>
+                    <h1>GS ICT <span><?php esc_html_e( 'Beveiligingslogboek', 'gs-ict' ); ?></span></h1>
+                    <p><?php echo esc_html( sprintf( __( 'Beveiligingsgebeurtenissen worden maximaal %d dagen bewaard.', 'gs-ict' ), self::RETENTION_DAYS ) ); ?></p>
+                </div>
+                <span class="gs-ict-version">v<?php echo esc_html( GS_ICT_VERSION ); ?></span>
+            </div>
+            <div class="gs-ict-panel">
             <table class="widefat striped">
                 <thead>
                     <tr>
@@ -161,6 +167,7 @@ final class GS_ICT_Audit_Log {
                     ?>
                 </div></div>
             <?php endif; ?>
+            </div>
         </div>
         <?php
     }
