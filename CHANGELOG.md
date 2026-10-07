@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0
+- GS ICT-beheer opgesplitst in Overzicht, 2FA, Updates en Beveiligingslogboek.
+- Nieuwe consistente admin-opmaak met responsive statuskaarten, panelen en badges.
+- Security status toont voortaan automatisch de eerstvolgende vaste onderhoudsdag.
+- Handmatig onderhoud staat vast op de eerste maandag van iedere maand.
+- De handmatige onderhoudsdatum en datumkiezer zijn verwijderd.
+- Updates-pagina bevat alleen het automatische-updatebeleid plus de volgende onderhoudsdag.
+- 2FA-beleid, herstelcodes en administratoraccounts zijn samengebracht op de 2FA-pagina.
+
 ## 0.4.0
 - Security-dashboard toegevoegd met WordPress-, PHP-, update- en 2FA-status.
 - Beveiligingslogboek toegevoegd met 90 dagen bewaartermijn voor belangrijke beheer- en beveiligingsgebeurtenissen.
