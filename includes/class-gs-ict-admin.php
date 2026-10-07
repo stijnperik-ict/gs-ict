@@ -113,4 +113,98 @@ final class GS_ICT_Admin {
                     <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('2FA echt uitschakelen voor je account?');">
                         <input type="hidden" name="action" value="gs_ict_disable_2fa">
                         <input type="hidden" name="user_id" value="<?php echo esc_attr( $current_user->ID ); ?>">
-               
+                        <?php wp_nonce_field( 'gs_ict_disable_2fa_' . $current_user->ID ); ?>
+                        <?php submit_button( __( '2FA uitschakelen', 'gs-ict' ), 'secondary', 'submit', false ); ?>
+                    </form>
+                <?php else : ?>
+                    <?php self::render_setup_form( $current_user, false ); ?>
+                <?php endif; ?>
+            </div>
+
+            <div class="card" style="max-width:1100px">
+                <h2><?php esc_html_e( 'Administratoraccounts', 'gs-ict' ); ?></h2>
+                <p class="description"><?php esc_html_e( 'Je kunt 2FA voor een andere administrator verplichten. Bij de eerstvolgende login wordt die gebruiker naar een apart installatiescherm gestuurd om zelf de QR-code te scannen en de configuratie te bevestigen.', 'gs-ict' ); ?></p>
+                <?php self::render_admin_table( $current_user->ID ); ?>
+            </div>
+        </div>
+        <?php
+    }
+
+    public static function setup_page() {
+        $current_user = wp_get_current_user();
+        if ( ! GS_ICT_Two_Factor::is_admin_user( $current_user ) ) {
+            wp_die( esc_html__( 'Deze 2FA-installatie is alleen beschikbaar voor administratoraccounts.', 'gs-ict' ) );
+        }
+
+        $message  = isset( $_GET['gsict_message'] ) ? sanitize_key( wp_unslash( $_GET['gsict_message'] ) ) : '';
+        $enabled  = GS_ICT_Two_Factor::is_enabled( $current_user->ID );
+        $recovery = GS_ICT_Two_Factor::get_recovery_codes_for_display( $current_user->ID );
+        ?>
+        <div class="wrap" style="max-width:850px">
+            <h1><?php esc_html_e( 'GS ICT – Tweestapsverificatie instellen', 'gs-ict' ); ?></h1>
+            <?php self::render_message( $message ); ?>
+            <?php self::render_recovery_codes( $recovery ); ?>
+
+            <?php if ( $enabled ) : ?>
+                <div class="card" style="max-width:800px">
+                    <h2><?php esc_html_e( '2FA is actief', 'gs-ict' ); ?></h2>
+                    <p><?php esc_html_e( 'De configuratie is voltooid. Vanaf je volgende login heb je je authenticatorcode nodig.', 'gs-ict' ); ?></p>
+                    <p><a class="button button-primary" href="<?php echo esc_url( admin_url() ); ?>"><?php esc_html_e( 'Naar het dashboard', 'gs-ict' ); ?></a></p>
+                </div>
+            <?php else : ?>
+                <div class="notice notice-warning inline">
+                    <p><strong><?php esc_html_e( '2FA is verplicht voor dit administratoraccount.', 'gs-ict' ); ?></strong> <?php esc_html_e( 'Rond onderstaande installatie af om verder te gaan naar het WordPress-dashboard.', 'gs-ict' ); ?></p>
+                </div>
+                <div class="card" style="max-width:800px">
+                    <?php self::render_setup_form( $current_user, true ); ?>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    private static function render_setup_form( $user, $forced ) {
+        $secret = GS_ICT_Two_Factor::get_or_create_pending_secret( $user->ID );
+        if ( ! $secret ) {
+            echo '<p>' . esc_html__( '2FA kan niet worden geactiveerd omdat de server geen ondersteunde versleuteling aanbiedt.', 'gs-ict' ) . '</p>';
+            return;
+        }
+        $uri = GS_ICT_Two_Factor::otpauth_uri( $user, $secret );
+        ?>
+        <h2><?php echo $forced ? esc_html__( 'Authenticator koppelen', 'gs-ict' ) : esc_html__( 'Authenticator instellen', 'gs-ict' ); ?></h2>
+        <ol>
+            <li><?php esc_html_e( 'Open je authenticator-app, bijvoorbeeld Microsoft Authenticator, Google Authenticator, 1Password of Authy.', 'gs-ict' ); ?></li>
+            <li><?php esc_html_e( 'Scan de QR-code hieronder. Je kunt ook de geheime sleutel handmatig invoeren.', 'gs-ict' ); ?></li>
+            <li><?php esc_html_e( 'Vul daarna de actuele 6-cijferige code uit je authenticator-app in.', 'gs-ict' ); ?></li>
+        </ol>
+
+        <div style="display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;margin:20px 0">
+            <div>
+                <div class="gs-ict-qrcode" data-otpauth="<?php echo esc_attr( $uri ); ?>" style="width:220px;min-height:220px;background:#fff;padding:10px;border:1px solid #dcdcde"></div>
+                <p class="description"><?php esc_html_e( 'De QR-code wordt lokaal in je browser opgebouwd.', 'gs-ict' ); ?></p>
+            </div>
+            <div style="min-width:280px;max-width:460px">
+                <p><strong><?php esc_html_e( 'Handmatige TOTP-sleutel', 'gs-ict' ); ?></strong></p>
+                <p><code style="font-size:16px;user-select:all;word-break:break-all"><?php echo esc_html( $secret ); ?></code></p>
+                <p class="description"><?php esc_html_e( 'Instellingen: TOTP, 6 cijfers, SHA-1, periode 30 seconden.', 'gs-ict' ); ?></p>
+                <details>
+                    <summary><?php esc_html_e( 'otpauth-URI tonen', 'gs-ict' ); ?></summary>
+                    <code style="word-break:break-all;user-select:all"><?php echo esc_html( $uri ); ?></code>
+                </details>
+            </div>
+        </div>
+
+        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:20px">
+            <input type="hidden" name="action" value="gs_ict_enable_2fa">
+            <input type="hidden" name="setup_context" value="<?php echo $forced ? 'forced' : 'settings'; ?>">
+            <?php wp_nonce_field( 'gs_ict_enable_2fa' ); ?>
+            <label for="totp_code"><strong><?php esc_html_e( 'Authenticatorcode', 'gs-ict' ); ?></strong></label><br>
+            <input type="text" id="totp_code" name="totp_code" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required style="font-size:20px;letter-spacing:3px;width:150px">
+            <?php submit_button( __( '2FA activeren', 'gs-ict' ), 'primary', 'submit', false ); ?>
+        </form>
+        <?php
+    }
+
+    private static function render_recovery_codes( $recovery ) {
+        if ( empty( $recovery ) ) {
+       
