@@ -207,4 +207,99 @@ final class GS_ICT_Admin {
 
     private static function render_recovery_codes( $recovery ) {
         if ( empty( $recovery ) ) {
-       
+            return;
+        }
+        ?>
+        <div class="notice notice-success">
+            <h2><?php esc_html_e( 'Bewaar je herstelcodes nu', 'gs-ict' ); ?></h2>
+            <p><?php esc_html_e( 'Elke code kan één keer worden gebruikt. Bewaar ze buiten WordPress, bijvoorbeeld in een wachtwoordmanager. Ze worden hierna niet opnieuw volledig getoond.', 'gs-ict' ); ?></p>
+            <pre style="font-size:15px;line-height:1.7"><?php echo esc_html( implode( "\n", $recovery ) ); ?></pre>
+        </div>
+        <?php
+    }
+
+    private static function render_admin_table( $current_user_id ) {
+        $users = get_users(
+            array(
+                'role'    => 'administrator',
+                'orderby' => 'display_name',
+                'order'   => 'ASC',
+            )
+        );
+        ?>
+        <table class="widefat striped" style="margin-top:16px">
+            <thead><tr><th><?php esc_html_e( 'Gebruiker', 'gs-ict' ); ?></th><th><?php esc_html_e( 'E-mail', 'gs-ict' ); ?></th><th><?php esc_html_e( '2FA-status', 'gs-ict' ); ?></th><th><?php esc_html_e( 'Actie', 'gs-ict' ); ?></th></tr></thead>
+            <tbody>
+                <?php foreach ( $users as $user ) : ?>
+                    <?php
+                    $enabled  = GS_ICT_Two_Factor::is_enabled( $user->ID );
+                    $required = GS_ICT_Two_Factor::is_required( $user->ID );
+                    ?>
+                    <tr>
+                        <td><?php echo esc_html( $user->display_name . ' (' . $user->user_login . ')' ); ?></td>
+                        <td><?php echo esc_html( $user->user_email ); ?></td>
+                        <td>
+                            <?php if ( $enabled ) : ?>
+                                <strong><?php esc_html_e( 'Aan', 'gs-ict' ); ?></strong>
+                            <?php elseif ( $required ) : ?>
+                                <strong><?php esc_html_e( 'Installatie vereist', 'gs-ict' ); ?></strong>
+                            <?php else : ?>
+                                <?php esc_html_e( 'Uit', 'gs-ict' ); ?>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php if ( $enabled ) : ?>
+                                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline" onsubmit="return confirm('2FA uitschakelen voor deze gebruiker?');">
+                                    <input type="hidden" name="action" value="gs_ict_disable_2fa">
+                                    <input type="hidden" name="user_id" value="<?php echo esc_attr( $user->ID ); ?>">
+                                    <?php wp_nonce_field( 'gs_ict_disable_2fa_' . $user->ID ); ?>
+                                    <button type="submit" class="button"><?php esc_html_e( 'Uitschakelen', 'gs-ict' ); ?></button>
+                                </form>
+                            <?php elseif ( $required ) : ?>
+                                <?php if ( (int) $user->ID === (int) $current_user_id ) : ?>
+                                    <a class="button button-primary" href="<?php echo esc_url( admin_url( 'admin.php?page=gs-ict-2fa-setup' ) ); ?>"><?php esc_html_e( 'Nu instellen', 'gs-ict' ); ?></a>
+                                <?php else : ?>
+                                    <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline" onsubmit="return confirm('Verplichte 2FA-installatie voor deze gebruiker annuleren?');">
+                                        <input type="hidden" name="action" value="gs_ict_cancel_required_2fa">
+                                        <input type="hidden" name="user_id" value="<?php echo esc_attr( $user->ID ); ?>">
+                                        <?php wp_nonce_field( 'gs_ict_cancel_required_2fa_' . $user->ID ); ?>
+                                        <button type="submit" class="button"><?php esc_html_e( 'Verplichting annuleren', 'gs-ict' ); ?></button>
+                                    </form>
+                                <?php endif; ?>
+                            <?php elseif ( (int) $user->ID === (int) $current_user_id ) : ?>
+                                <a class="button" href="#totp_code"><?php esc_html_e( 'Hierboven instellen', 'gs-ict' ); ?></a>
+                            <?php else : ?>
+                                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline">
+                                    <input type="hidden" name="action" value="gs_ict_require_2fa">
+                                    <input type="hidden" name="user_id" value="<?php echo esc_attr( $user->ID ); ?>">
+                                    <?php wp_nonce_field( 'gs_ict_require_2fa_' . $user->ID ); ?>
+                                    <button type="submit" class="button button-primary"><?php esc_html_e( '2FA verplichten', 'gs-ict' ); ?></button>
+                                </form>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php
+    }
+
+    public static function save_updates() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'Onvoldoende rechten.', 'gs-ict' ) );
+        }
+        check_admin_referer( 'gs_ict_save_updates' );
+
+        update_option( 'gs_ict_disable_auto_updates', isset( $_POST['disable_auto_updates'] ) ? '1' : '0' );
+
+        $date = isset( $_POST['planned_update_date'] ) ? sanitize_text_field( wp_unslash( $_POST['planned_update_date'] ) ) : '';
+        if ( '' !== $date && ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
+            $date = '';
+        }
+        update_option( 'gs_ict_planned_update_date', $date );
+
+        self::redirect( 'updates_saved' );
+    }
+
+    public static function enable_2fa() {
+        if ( ! curren
