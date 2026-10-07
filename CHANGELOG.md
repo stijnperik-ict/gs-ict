@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0 – 2FA Security Hardening
+- Nieuwe password-first loginflow: 2FA verschijnt pas nadat gebruikersnaam en wachtwoord correct zijn geverifieerd.
+- Het 2FA-veld is verwijderd van de normale WordPress-inlogpagina.
+- 2FA gebruikt nu een kortlevende, eenmalige challenge van 5 minuten met maximaal 5 pogingen.
+- Foute wachtwoorden tellen niet langer mee als mislukte 2FA-pogingen en kunnen geen TOTP-code meer als gebruikt markeren.
+- Herstelcodes blijven permanent gehasht opgeslagen; de tijdelijke eenmalige weergave wordt nu versleuteld opgeslagen.
+- De verplichte 2FA-setup laat alleen nog de specifieke GS ICT setup-actie door.
+- QRCode.js wordt lokaal uit de plugin geladen in plaats van vanaf een externe CDN.
+- QRCode.js MIT-licentie toegevoegd aan de plugin.
+- Niet-interactieve normale wachtwoordauthenticatie voor 2FA-beveiligde administratoraccounts wordt geweigerd; interactieve wp-login.php vereist de tweede factor.
+
 ## 0.5.1
 - De onderhoudsdatum wordt alleen nog getoond wanneer automatische updates zijn uitgeschakeld.
 - Op sites met automatische updates aan verdwijnt de onderhoudskaart op Overzicht volledig.
