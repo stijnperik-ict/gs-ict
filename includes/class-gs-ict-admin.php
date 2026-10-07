@@ -84,7 +84,7 @@ final class GS_ICT_Admin {
         if ( in_array( $page, array( 'gs-ict-2fa', 'gs-ict-2fa-setup' ), true ) ) {
             wp_enqueue_script(
                 'gs-ict-qrcode',
-                'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+                plugins_url( 'assets/vendor/qrcode.min.js', GS_ICT_FILE ),
                 array(),
                 '1.0.0',
                 true
