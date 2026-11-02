@@ -3,7 +3,8 @@ Contributors: gsict
 Tags: security, two-factor, 2fa, totp, updates
 Requires at least: 6.4
 Requires PHP: 7.4
-Stable tag: 0.6.0
+Tested up to: 7.1.4
+Stable tag: 0.6.1
 License: GPLv2 or later
 
 GS ICT voegt beheerfuncties toe voor WordPress: TOTP-2FA voor administratoraccounts en centrale controle over automatische updates.
@@ -39,6 +40,11 @@ GS ICT voegt beheerfuncties toe voor WordPress: TOTP-2FA voor administratoraccou
 Maak vooraf een back-up en test de plugin bij voorkeur eerst op staging. Als je het enige administratoraccount hebt, bewaar je herstelcodes buiten WordPress.
 
 == Changelog ==
+
+= 0.6.1 =
+* De algemene WordPress-beheermelding op de maandelijkse onderhoudsdag is verwijderd.
+* Onderhoudsinformatie blijft alleen binnen GS ICT zelf zichtbaar.
+* Werkend getest met WordPress 7.1.4.
 
 = 0.6.0 =
 * Password-first tweestapslogin toegevoegd; het 2FA-veld staat niet langer op de normale loginpagina.
