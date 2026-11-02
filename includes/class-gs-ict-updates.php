@@ -21,7 +21,6 @@ final class GS_ICT_Updates {
             delete_option( 'gs_ict_planned_update_date' );
         }
 
-        add_action( 'admin_notices', array( __CLASS__, 'maintenance_day_notice' ) );
     }
 
     public static function auto_updates_disabled() {
@@ -49,31 +48,6 @@ final class GS_ICT_Updates {
     public static function days_until_maintenance() {
         $today = current_datetime()->setTime( 0, 0, 0 );
         return (int) $today->diff( self::next_maintenance_date() )->format( '%a' );
-    }
-
-    public static function maintenance_day_notice() {
-        if ( ! current_user_can( 'update_core' ) ) {
-            return;
-        }
-
-        $today       = current_datetime()->setTime( 0, 0, 0 );
-        $maintenance = self::first_monday_of_month(
-            (int) $today->format( 'Y' ),
-            (int) $today->format( 'n' )
-        );
-
-        if ( $today->format( 'Y-m-d' ) !== $maintenance->format( 'Y-m-d' ) ) {
-            return;
-        }
-
-        echo '<div class="notice notice-warning"><p>';
-        echo wp_kses_post(
-            sprintf(
-                __( '<strong>GS ICT:</strong> vandaag is de vaste maandelijkse onderhoudsdag. <a href="%s">Controleer en voer de WordPress-updates handmatig uit</a>.', 'gs-ict' ),
-                esc_url( admin_url( 'update-core.php' ) )
-            )
-        );
-        echo '</p></div>';
     }
 
     private static function first_monday_of_month( $year, $month ) {
