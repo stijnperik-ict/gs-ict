@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1
+- Algemene WordPress-beheermelding op de maandelijkse onderhoudsdag verwijderd.
+- Onderhoudsinformatie blijft alleen zichtbaar binnen de GS ICT-pagina's.
+- Werkend getest met WordPress 7.1.4.
+
 ## 0.6.0 – 2FA Security Hardening
 - Nieuwe password-first loginflow: 2FA verschijnt pas nadat gebruikersnaam en wachtwoord correct zijn geverifieerd.
 - Het 2FA-veld is verwijderd van de normale WordPress-inlogpagina.
