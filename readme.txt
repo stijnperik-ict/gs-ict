@@ -4,7 +4,7 @@ Tags: security, two-factor, 2fa, totp, updates
 Requires at least: 6.4
 Requires PHP: 7.4
 Tested up to: 7.1.4
-Stable tag: 0.6.1
+Stable tag: 0.7.0
 License: GPLv2 or later
 
 GS ICT voegt beheerfuncties toe voor WordPress: TOTP-2FA voor administratoraccounts en centrale controle over automatische updates.
@@ -26,6 +26,8 @@ GS ICT voegt beheerfuncties toe voor WordPress: TOTP-2FA voor administratoraccou
 * Beveiligingslogboek voor logins, 2FA, rolwijzigingen, pluginacties en updates.
 * Optioneel 2FA verplicht voor alle administrators.
 * Herstelcodes opnieuw genereren na verificatie met de huidige authenticatorcode.
+* Extra code-snippets voor CSS, JavaScript en HTML in de head van front-end of beheerder.
+* Snippets afzonderlijk inschakelen, uitschakelen, bewerken en verwijderen.
 
 == Installatie ==
 
@@ -40,6 +42,15 @@ GS ICT voegt beheerfuncties toe voor WordPress: TOTP-2FA voor administratoraccou
 Maak vooraf een back-up en test de plugin bij voorkeur eerst op staging. Als je het enige administratoraccount hebt, bewaar je herstelcodes buiten WordPress.
 
 == Changelog ==
+
+= 0.7.0 =
+* Nieuw tabblad Extra code toegevoegd.
+* Meerdere CSS-, JavaScript- en HTML-snippets beheren.
+* Per snippet keuze tussen Front-end en Beheerder.
+* Snippets kunnen afzonderlijk worden in- en uitgeschakeld, bewerkt en verwijderd.
+* Alleen beheerders met unfiltered_html mogen onbeperkte code opslaan.
+* Beheer-snippets worden niet uitgevoerd op de Extra code-pagina zodat herstel altijd mogelijk blijft.
+* Noodstop mogelijk via de constante GS_ICT_DISABLE_EXTRA_CODE in wp-config.php.
 
 = 0.6.1 =
 * De algemene WordPress-beheermelding op de maandelijkse onderhoudsdag is verwijderd.
