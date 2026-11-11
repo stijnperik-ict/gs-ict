@@ -55,6 +55,15 @@ final class GS_ICT_Admin {
         );
 
         add_submenu_page(
+            'gs-ict',
+            __( 'Extra code', 'gs-ict' ),
+            __( 'Extra code', 'gs-ict' ),
+            'manage_options',
+            'gs-ict-extra-code',
+            array( __CLASS__, 'extra_code_page' )
+        );
+
+        add_submenu_page(
             null,
             __( '2FA instellen', 'gs-ict' ),
             __( '2FA instellen', 'gs-ict' ),
@@ -68,7 +77,7 @@ final class GS_ICT_Admin {
         unset( $hook_suffix );
 
         $page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
-        $plugin_pages = array( 'gs-ict', 'gs-ict-2fa', 'gs-ict-updates', 'gs-ict-audit-log', 'gs-ict-2fa-setup' );
+        $plugin_pages = array( 'gs-ict', 'gs-ict-2fa', 'gs-ict-updates', 'gs-ict-extra-code', 'gs-ict-audit-log', 'gs-ict-2fa-setup' );
 
         if ( ! in_array( $page, $plugin_pages, true ) ) {
             return;
@@ -231,6 +240,144 @@ final class GS_ICT_Admin {
                     </div>
                 </div>
             <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    public static function extra_code_page() {
+        self::require_manage_options();
+
+        $edit_id = isset( $_GET['edit'] ) ? sanitize_key( wp_unslash( $_GET['edit'] ) ) : '';
+        $snippet = $edit_id ? GS_ICT_Extra_Code::get_snippet( $edit_id ) : null;
+        $snippets = GS_ICT_Extra_Code::get_snippets();
+        $can_manage_code = GS_ICT_Extra_Code::can_manage_code();
+        ?>
+        <div class="wrap gs-ict-wrap">
+            <?php self::page_header( __( 'Extra code', 'gs-ict' ), __( 'Voeg CSS, JavaScript of HTML toe aan de <head> van de front-end of het WordPress-beheer.', 'gs-ict' ) ); ?>
+            <?php self::render_current_message(); ?>
+
+            <?php if ( ! $can_manage_code ) : ?>
+                <div class="notice notice-error inline"><p><?php esc_html_e( 'Je account heeft niet de capability unfiltered_html. Uit veiligheidsoverwegingen kan Extra code alleen door beheerders met deze capability worden gewijzigd.', 'gs-ict' ); ?></p></div>
+            <?php endif; ?>
+
+            <div class="gs-ict-panel">
+                <div class="gs-ict-panel-header">
+                    <div>
+                        <h2><?php echo $snippet ? esc_html__( 'Snippet bewerken', 'gs-ict' ) : esc_html__( 'Nieuwe snippet', 'gs-ict' ); ?></h2>
+                        <p><?php esc_html_e( 'CSS wordt in een <style>-tag geplaatst, JavaScript in een <script>-tag en HTML wordt rechtstreeks in de head uitgevoerd.', 'gs-ict' ); ?></p>
+                    </div>
+                </div>
+
+                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+                    <input type="hidden" name="action" value="gs_ict_save_extra_code">
+                    <input type="hidden" name="snippet_id" value="<?php echo esc_attr( $snippet['id'] ?? '' ); ?>">
+                    <?php wp_nonce_field( 'gs_ict_save_extra_code' ); ?>
+
+                    <div class="gs-ict-code-form-grid">
+                        <label>
+                            <strong><?php esc_html_e( 'Naam', 'gs-ict' ); ?></strong>
+                            <input type="text" name="snippet_name" class="regular-text" value="<?php echo esc_attr( $snippet['name'] ?? '' ); ?>" required <?php disabled( ! $can_manage_code ); ?>>
+                        </label>
+
+                        <label>
+                            <strong><?php esc_html_e( 'Type', 'gs-ict' ); ?></strong>
+                            <select name="snippet_type" <?php disabled( ! $can_manage_code ); ?>>
+                                <option value="css" <?php selected( $snippet['type'] ?? 'css', 'css' ); ?>>CSS</option>
+                                <option value="js" <?php selected( $snippet['type'] ?? '', 'js' ); ?>>JavaScript</option>
+                                <option value="html" <?php selected( $snippet['type'] ?? '', 'html' ); ?>>HTML</option>
+                            </select>
+                        </label>
+
+                        <label>
+                            <strong><?php esc_html_e( 'Waar op de site', 'gs-ict' ); ?></strong>
+                            <select name="snippet_location" <?php disabled( ! $can_manage_code ); ?>>
+                                <option value="frontend" <?php selected( $snippet['location'] ?? 'frontend', 'frontend' ); ?>><?php esc_html_e( 'In front-end', 'gs-ict' ); ?></option>
+                                <option value="admin" <?php selected( $snippet['location'] ?? '', 'admin' ); ?>><?php esc_html_e( 'In beheerder', 'gs-ict' ); ?></option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <label class="gs-ict-checkbox-row">
+                        <input type="checkbox" name="snippet_enabled" value="1" <?php checked( ! isset( $snippet['enabled'] ) || ! empty( $snippet['enabled'] ) ); ?> <?php disabled( ! $can_manage_code ); ?>>
+                        <span>
+                            <strong><?php esc_html_e( 'Snippet inschakelen', 'gs-ict' ); ?></strong>
+                            <small><?php esc_html_e( 'Uitgeschakelde snippets blijven opgeslagen, maar worden niet op de website uitgevoerd.', 'gs-ict' ); ?></small>
+                        </span>
+                    </label>
+
+                    <label class="gs-ict-code-label" for="snippet_code"><strong><?php esc_html_e( 'Code', 'gs-ict' ); ?></strong></label>
+                    <textarea id="snippet_code" name="snippet_code" class="large-text code gs-ict-code-editor" rows="18" spellcheck="false" <?php disabled( ! $can_manage_code ); ?>><?php echo esc_textarea( $snippet['code'] ?? '' ); ?></textarea>
+
+                    <div class="gs-ict-panel-actions">
+                        <?php if ( $can_manage_code ) : ?>
+                            <?php submit_button( $snippet ? __( 'Snippet bijwerken', 'gs-ict' ) : __( 'Snippet opslaan', 'gs-ict' ), 'primary', 'submit', false ); ?>
+                        <?php endif; ?>
+                        <?php if ( $snippet ) : ?>
+                            <a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=gs-ict-extra-code' ) ); ?>"><?php esc_html_e( 'Annuleren', 'gs-ict' ); ?></a>
+                        <?php endif; ?>
+                    </div>
+                </form>
+            </div>
+
+            <div class="gs-ict-panel">
+                <div class="gs-ict-panel-header">
+                    <div>
+                        <h2><?php esc_html_e( 'Opgeslagen snippets', 'gs-ict' ); ?></h2>
+                        <p><?php esc_html_e( 'Alle Extra code-snippets voor deze WordPress-installatie.', 'gs-ict' ); ?></p>
+                    </div>
+                </div>
+
+                <div class="gs-ict-table-wrap">
+                    <table class="widefat striped">
+                        <thead>
+                            <tr>
+                                <th><?php esc_html_e( 'Naam', 'gs-ict' ); ?></th>
+                                <th><?php esc_html_e( 'Type', 'gs-ict' ); ?></th>
+                                <th><?php esc_html_e( 'Locatie', 'gs-ict' ); ?></th>
+                                <th><?php esc_html_e( 'Status', 'gs-ict' ); ?></th>
+                                <th><?php esc_html_e( 'Acties', 'gs-ict' ); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php if ( empty( $snippets ) ) : ?>
+                            <tr><td colspan="5"><?php esc_html_e( 'Nog geen snippets toegevoegd.', 'gs-ict' ); ?></td></tr>
+                        <?php else : ?>
+                            <?php foreach ( $snippets as $item ) : ?>
+                                <tr>
+                                    <td><strong><?php echo esc_html( $item['name'] ); ?></strong></td>
+                                    <td><code><?php echo esc_html( strtoupper( $item['type'] ) ); ?></code></td>
+                                    <td><?php echo 'admin' === $item['location'] ? esc_html__( 'Beheerder', 'gs-ict' ) : esc_html__( 'Front-end', 'gs-ict' ); ?></td>
+                                    <td>
+                                        <?php if ( ! empty( $item['enabled'] ) ) : ?>
+                                            <span class="gs-ict-badge gs-ict-badge-success"><?php esc_html_e( 'Aan', 'gs-ict' ); ?></span>
+                                        <?php else : ?>
+                                            <span class="gs-ict-badge"><?php esc_html_e( 'Uit', 'gs-ict' ); ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <a class="button" href="<?php echo esc_url( add_query_arg( array( 'page' => 'gs-ict-extra-code', 'edit' => $item['id'] ), admin_url( 'admin.php' ) ) ); ?>"><?php esc_html_e( 'Bewerken', 'gs-ict' ); ?></a>
+                                        <?php if ( $can_manage_code ) : ?>
+                                            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="gs-ict-inline-action">
+                                                <input type="hidden" name="action" value="gs_ict_toggle_extra_code">
+                                                <input type="hidden" name="snippet_id" value="<?php echo esc_attr( $item['id'] ); ?>">
+                                                <?php wp_nonce_field( 'gs_ict_toggle_extra_code_' . $item['id'] ); ?>
+                                                <button type="submit" class="button"><?php echo ! empty( $item['enabled'] ) ? esc_html__( 'Uitschakelen', 'gs-ict' ) : esc_html__( 'Inschakelen', 'gs-ict' ); ?></button>
+                                            </form>
+                                            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="gs-ict-inline-action" onsubmit="return confirm('Deze snippet definitief verwijderen?');">
+                                                <input type="hidden" name="action" value="gs_ict_delete_extra_code">
+                                                <input type="hidden" name="snippet_id" value="<?php echo esc_attr( $item['id'] ); ?>">
+                                                <?php wp_nonce_field( 'gs_ict_delete_extra_code_' . $item['id'] ); ?>
+                                                <button type="submit" class="button button-link-delete"><?php esc_html_e( 'Verwijderen', 'gs-ict' ); ?></button>
+                                            </form>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
         <?php
     }
@@ -556,6 +703,10 @@ final class GS_ICT_Admin {
             'recovery_regenerated'      => array( 'success', __( 'Nieuwe herstelcodes zijn aangemaakt. Bewaar de hieronder getoonde codes direct; de oude codes zijn ongeldig.', 'gs-ict' ) ),
             'recovery_error'            => array( 'error', __( 'De herstelcodes konden niet worden vernieuwd. Controleer je authenticatorcode en probeer opnieuw.', 'gs-ict' ) ),
             '2fa_error'                 => array( 'error', __( 'De 2FA-wijziging kon niet worden uitgevoerd. Controleer de code en probeer opnieuw.', 'gs-ict' ) ),
+            'extra_code_saved'          => array( 'success', __( 'De Extra code-snippet is opgeslagen.', 'gs-ict' ) ),
+            'extra_code_deleted'        => array( 'warning', __( 'De Extra code-snippet is verwijderd.', 'gs-ict' ) ),
+            'extra_code_toggled'        => array( 'success', __( 'De status van de Extra code-snippet is gewijzigd.', 'gs-ict' ) ),
+            'extra_code_error'          => array( 'error', __( 'De Extra code-snippet kon niet worden opgeslagen. Controleer de velden en probeer opnieuw.', 'gs-ict' ) ),
         );
 
         if ( isset( $messages[ $message ] ) ) {
