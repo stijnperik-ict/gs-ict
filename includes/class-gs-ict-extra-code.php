@@ -37,13 +37,22 @@ final class GS_ICT_Extra_Code {
     }
 
     public static function render_frontend_head() {
-        if ( is_admin() ) {
+        if ( is_admin() || ( defined( 'GS_ICT_DISABLE_EXTRA_CODE' ) && GS_ICT_DISABLE_EXTRA_CODE ) ) {
             return;
         }
         self::render_location( 'frontend' );
     }
 
     public static function render_admin_head() {
+        if ( defined( 'GS_ICT_DISABLE_EXTRA_CODE' ) && GS_ICT_DISABLE_EXTRA_CODE ) {
+            return;
+        }
+
+        $page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+        if ( 'gs-ict-extra-code' === $page ) {
+            return;
+        }
+
         self::render_location( 'admin' );
     }
 
