@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0 – Extra code
+- Nieuw GS ICT-tabblad Extra code toegevoegd.
+- Meerdere snippets voor CSS, JavaScript en HTML kunnen worden opgeslagen.
+- Per snippet keuze voor injectie in de `<head>` van de front-end of het WordPress-beheer.
+- Snippets kunnen afzonderlijk worden ingeschakeld, uitgeschakeld, bewerkt en verwijderd.
+- Codebeheer vereist zowel `manage_options` als `unfiltered_html`.
+- Wijzigingen worden in het beveiligingslogboek geregistreerd zonder de code-inhoud zelf op te slaan.
+- Beheer-snippets worden bewust niet uitgevoerd op de Extra code-beheerpagina, zodat een foutieve snippet altijd kan worden hersteld.
+- Noodstop toegevoegd: `define( 'GS_ICT_DISABLE_EXTRA_CODE', true );` schakelt alle Extra code-output uit.
+
 ## 0.6.1
 - Algemene WordPress-beheermelding op de maandelijkse onderhoudsdag verwijderd.
 - Onderhoudsinformatie blijft alleen zichtbaar binnen de GS ICT-pagina's.
