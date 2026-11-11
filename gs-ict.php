@@ -24,6 +24,7 @@ require_once GS_ICT_DIR . 'includes/class-gs-ict-audit-log.php';
 require_once GS_ICT_DIR . 'includes/class-gs-ict-two-factor.php';
 require_once GS_ICT_DIR . 'includes/class-gs-ict-updates.php';
 require_once GS_ICT_DIR . 'includes/class-gs-ict-dashboard.php';
+require_once GS_ICT_DIR . 'includes/class-gs-ict-extra-code.php';
 require_once GS_ICT_DIR . 'includes/class-gs-ict-github-updater.php';
 require_once GS_ICT_DIR . 'includes/class-gs-ict-admin.php';
 
@@ -39,6 +40,7 @@ add_action( 'plugins_loaded', function () {
     GS_ICT_Two_Factor::init();
     GS_ICT_Updates::init();
     GS_ICT_Dashboard::init();
+    GS_ICT_Extra_Code::init();
     GS_ICT_GitHub_Updater::init();
     GS_ICT_Admin::init();
     GS_ICT_Audit_Log::init();
