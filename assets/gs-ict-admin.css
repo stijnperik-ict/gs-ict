@@ -333,3 +333,45 @@
         min-width: 0;
     }
 }
+
+
+.gs-ict-code-form-grid {
+    display: grid;
+    grid-template-columns: minmax(260px, 2fr) minmax(160px, 1fr) minmax(180px, 1fr);
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.gs-ict-code-form-grid label,
+.gs-ict-code-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.gs-ict-code-form-grid input,
+.gs-ict-code-form-grid select {
+    width: 100%;
+    max-width: none;
+}
+
+.gs-ict-code-editor {
+    width: 100%;
+    min-height: 420px;
+    padding: 14px;
+    border-radius: 6px;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    tab-size: 4;
+}
+
+.gs-ict-inline-action + .gs-ict-inline-action {
+    margin-left: 4px;
+}
+
+@media (max-width: 900px) {
+    .gs-ict-code-form-grid {
+        grid-template-columns: 1fr;
+    }
+}
